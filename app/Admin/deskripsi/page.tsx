@@ -2,19 +2,19 @@
 
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
-import { 
-  Building2, 
-  Building, 
-  UserCheck, 
-  Landmark, 
-  FileCheck2, 
-  BookOpenCheck, 
-  FileSearch, 
-  Receipt, 
-  Globe, 
-  Award, 
-  Coffee, 
-  Users, 
+import {
+  Building2,
+  Building,
+  UserCheck,
+  Landmark,
+  FileCheck2,
+  BookOpenCheck,
+  FileSearch,
+  Receipt,
+  Globe,
+  Award,
+  Coffee,
+  Users,
   Briefcase,
   ChevronDown,
   Pencil,
@@ -27,9 +27,12 @@ import {
 
 interface ServiceItem {
   id: number | string
-  title: string
-  category: string
-  description?: string
+  title_id: string
+  title_en: string
+  category_id: string
+  category_en: string
+  description_id?: string
+  description_en?: string
   icon?: string | LucideIcon
 }
 
@@ -39,27 +42,32 @@ interface ServiceCategory {
 }
 
 const CATEGORY_LIST = [
-  'General Corporate & Virtual Office',
-  'Corporate Establishment',
-  'Standard Business License Service',
-  'Financial, Advisory & Legal Services',
-  'Facilities'
+  'Korporasi Umum & Kantor Virtual',
+  'Pendirian Perusahaan',
+  'Layanan Perizinan Usaha Standar',
+  'Layanan Keuangan, Konsultasi & Hukum',
+  'Fasilitas'
 ]
 
 const ICON_MAP: Record<string, LucideIcon> = {
   'Kantor Virtual': Building2,
-  'Limited Liability Company (PMA)': Building,
-  'Limited Liability Company (local)': UserCheck,
-  'Foundation (Yayasan)': Landmark,
-  'Individual Limited Liability Company': UserCheck,
-  'Standard Business License Service': FileCheck2,
-  'Book-keeping': BookOpenCheck,
-  'Audit Service': FileSearch,
-  'Tax Consulting Service': Receipt,
+  'Korporasi Umum & Kantor Virtual': Building2,
+  'Virtual Office': Building2,
+  'Perseroan Terbatas (PMA)': Building,
+  'Perseroan Terbatas (Lokal)': UserCheck,
+  'Yayasan': Landmark,
+  'Foundation': Landmark,
+  'Perusahaan Perorangan': UserCheck,
+  'Pendirian Perusahaan': Building,
+  'Layanan Perizinan Usaha Standar': FileCheck2,
+  'Pembukuan': BookOpenCheck,
+  'Bookkeeping': BookOpenCheck,
+  'Layanan Audit': FileSearch,
+  'Konsultasi Pajak': Receipt,
   'VISA & KITAS': Globe,
-  'Trademark & Patent': Award,
-  'Cafe & Coffee Roastery': Coffee,
-  'Meeting Room': Users,
+  'Merek & Paten': Award,
+  'Kafe & Coffee Roastery': Coffee,
+  'Ruang Meeting': Users,
   'Private Office': Briefcase
 }
 
@@ -68,29 +76,71 @@ export default function AdminDesk() {
   const [servicesCategories, setServicesCategories] = useState<ServiceCategory[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editId, setEditId] = useState<number | string | null>(null)
-  const [title, setTitle] = useState('')
-  const [category, setCategory] = useState(CATEGORY_LIST[0])
-  const [description, setDescription] = useState('')
-  const API_URL = process.env.NEXT_PUBLIC_API_URL
+  const [titleId, setTitleId] = useState('')
+  const [categoryId, setCategoryId] = useState(CATEGORY_LIST[0])
+  const [descriptionId, setDescriptionId] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
   const fetchServices = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/serviceModel`)
-      if (res.data?.success) {
-        const rawData: ServiceItem[] = res.data.data
+      setLoading(true)
 
-        const groupedCategories: ServiceCategory[] = CATEGORY_LIST.map((catName) => {
-          const filteredItems = rawData.filter((item) => item.category === catName)
-          return {
-            categoryName: catName,
-            items: filteredItems
+      const res = await axios.get(`${API_URL}/api/serviceModel`)
+
+      if (res.data?.success) {
+        const rawData: ServiceItem[] = Array.isArray(res.data.data)
+          ? res.data.data
+          : []
+
+        const groupedCategories: ServiceCategory[] = []
+
+        CATEGORY_LIST.forEach((category) => {
+          const filteredItems = rawData.filter(
+            (item) => item.category_id === category
+          )
+
+          if (filteredItems.length > 0) {
+            groupedCategories.push({
+              categoryName: category,
+              items: filteredItems
+            })
           }
         })
 
+        const remainingItems = rawData.filter(
+          (item) => !CATEGORY_LIST.includes(item.category_id)
+        )
+
+        const remainingGroups = new Map<string, ServiceItem[]>()
+
+        remainingItems.forEach((item) => {
+          const category = item.category_id || 'Lainnya'
+
+          if (!remainingGroups.has(category)) {
+            remainingGroups.set(category, [])
+          }
+
+          remainingGroups.get(category)!.push(item)
+        })
+
+        remainingGroups.forEach((items, categoryName) => {
+          groupedCategories.push({
+            categoryName,
+            items
+          })
+        })
+
         setServicesCategories(groupedCategories)
+      } else {
+        setServicesCategories([])
       }
     } catch (err) {
       console.error('Error fetching services:', err)
+      setServicesCategories([])
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -99,53 +149,96 @@ export default function AdminDesk() {
   }, [])
 
   const toggleCard = (id: string | number) => {
-    setOpenId(openId === id ? null : id)
+    setOpenId((current) => (current === id ? null : id))
   }
 
   const handleOpenAdd = () => {
     setEditId(null)
-    setTitle('')
-    setCategory(CATEGORY_LIST[0])
-    setDescription('')
+    setTitleId('')
+    setCategoryId(CATEGORY_LIST[0])
+    setDescriptionId('')
     setIsModalOpen(true)
   }
 
-  const handleOpenEdit = (e: React.MouseEvent, item: ServiceItem) => {
+  const handleOpenEdit = (
+    e: React.MouseEvent,
+    item: ServiceItem
+  ) => {
     e.stopPropagation()
+
     setEditId(item.id)
-    setTitle(item.title)
-    setCategory(item.category)
-    setDescription(item.description || '')
+    setTitleId(item.title_id || '')
+    setCategoryId(item.category_id || CATEGORY_LIST[0])
+    setDescriptionId(item.description_id || '')
     setIsModalOpen(true)
   }
 
-  const handleDelete = async (e: React.MouseEvent, id: number | string) => {
+  const handleDelete = async (
+    e: React.MouseEvent,
+    id: number | string
+  ) => {
     e.stopPropagation()
-    if (confirm('Apakah Anda yakin ingin menghapus layanan ini?')) {
-      try {
-        await axios.delete(`${API_URL}/api/serviceModel/${id}`)
-        fetchServices()
-      } catch (err) {
-        alert('Gagal menghapus data!')
-      }
+
+    if (!confirm('Apakah Anda yakin ingin menghapus layanan ini?')) {
+      return
+    }
+
+    try {
+      await axios.delete(`${API_URL}/api/serviceModel/${id}`)
+      await fetchServices()
+    } catch (err) {
+      console.error('Error deleting service:', err)
+      alert('Gagal menghapus data!')
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    try {
-      const payload = { title, category, description }
 
-      if (editId) {
-        await axios.put(`${API_URL}/api/serviceModel/${editId}`, payload)
+    if (!titleId.trim()) {
+      alert('Judul wajib diisi!')
+      return
+    }
+
+    if (!categoryId.trim()) {
+      alert('Kategori wajib dipilih!')
+      return
+    }
+
+    try {
+      const payload = {
+        title_id: titleId.trim(),
+        category_id: categoryId.trim(),
+        description_id: descriptionId.trim()
+      }
+
+      if (editId !== null) {
+        await axios.put(
+          `${API_URL}/api/serviceModel/${editId}`,
+          payload
+        )
       } else {
-        await axios.post(`${API_URL}/api/serviceModel`, payload)
+        await axios.post(
+          `${API_URL}/api/serviceModel`,
+          payload
+        )
       }
 
       setIsModalOpen(false)
-      fetchServices()
-    } catch (err) {
-      alert('Gagal menyimpan data!')
+      setEditId(null)
+      setTitleId('')
+      setCategoryId(CATEGORY_LIST[0])
+      setDescriptionId('')
+
+      await fetchServices()
+    } catch (err: any) {
+      console.error('Error menyimpan service:', err)
+      console.error('Response:', err.response?.data)
+
+      alert(
+        err.response?.data?.message ||
+        'Gagal menyimpan data!'
+      )
     }
   }
 
@@ -153,13 +246,31 @@ export default function AdminDesk() {
     const itemId = service.id
     const isOpen = openId === itemId
 
+    const title =
+      service.title_id ||
+      service.title_en ||
+      'Tanpa Judul'
+
+    const description =
+      service.description_id ||
+      service.description_en ||
+      'Tidak ada deskripsi tambahan.'
+
     let IconComponent: LucideIcon = Building2
-    if (typeof service.icon === 'function' || typeof service.icon === 'object') {
+
+    if (typeof service.icon === 'function') {
       IconComponent = service.icon as LucideIcon
-    } else if (typeof service.icon === 'string' && ICON_MAP[service.icon]) {
+    } else if (
+      typeof service.icon === 'string' &&
+      ICON_MAP[service.icon]
+    ) {
       IconComponent = ICON_MAP[service.icon]
-    } else if (ICON_MAP[service.title]) {
-      IconComponent = ICON_MAP[service.title]
+    } else if (ICON_MAP[service.title_id]) {
+      IconComponent = ICON_MAP[service.title_id]
+    } else if (ICON_MAP[service.title_en]) {
+      IconComponent = ICON_MAP[service.title_en]
+    } else if (ICON_MAP[service.category_id]) {
+      IconComponent = ICON_MAP[service.category_id]
     }
 
     return (
@@ -178,13 +289,23 @@ export default function AdminDesk() {
               <div className="p-2 rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition-colors shrink-0">
                 <IconComponent className="w-4 h-4 stroke-[2.2]" />
               </div>
-              <h3 className={`font-bold text-xs sm:text-sm leading-snug truncate ${isOpen ? 'text-amber-900' : 'text-gray-800'}`}>
-                {service.title}
+
+              <h3
+                className={`font-bold text-xs sm:text-sm leading-snug ${
+                  isOpen
+                    ? 'text-amber-900'
+                    : 'text-gray-800'
+                }`}
+              >
+                {title}
               </h3>
             </div>
+
             <div
               className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0 transition-transform duration-200 ${
-                isOpen ? 'bg-amber-200/70 text-amber-800 rotate-180' : 'bg-gray-100 text-gray-500 group-hover:bg-amber-100 group-hover:text-amber-700'
+                isOpen
+                  ? 'bg-amber-200/70 text-amber-800 rotate-180'
+                  : 'bg-gray-100 text-gray-500 group-hover:bg-amber-100 group-hover:text-amber-700'
               }`}
             >
               <ChevronDown className="w-4 h-4" />
@@ -192,13 +313,14 @@ export default function AdminDesk() {
           </div>
 
           {isOpen && (
-            <div className="mt-3 text-xs text-gray-600 border-t border-amber-200/60 pt-3 animate-in fade-in duration-150">
-              <p className="leading-relaxed">{service.description || 'Tidak ada deskripsi tambahan.'}</p>
+            <div className="mt-3 text-xs text-gray-600 border-t border-amber-200/60 pt-3">
+              <p className="leading-relaxed">
+                {description}
+              </p>
             </div>
           )}
         </div>
 
-        {/* Action Buttons */}
         <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
           <button
             type="button"
@@ -208,6 +330,7 @@ export default function AdminDesk() {
             <Pencil className="w-3.5 h-3.5" />
             Edit
           </button>
+
           <button
             type="button"
             onClick={(e) => handleDelete(e, service.id)}
@@ -222,52 +345,35 @@ export default function AdminDesk() {
   }
 
   const renderRow = (items: ServiceItem[]) => {
-    if (items.length === 0) return null
-
-    if (items.length === 1) {
-      return (
-        <div className="flex justify-center w-full">
-          <div className="w-full md:w-[calc(33.333%-11px)]">
-            {renderCard(items[0])}
-          </div>
-        </div>
-      )
-    }
-
-    if (items.length === 2) {
-      return (
-        <div className="flex flex-col md:flex-row justify-center gap-4 w-full">
-          <div className="w-full md:w-[calc(33.333%-11px)]">
-            {renderCard(items[0])}
-          </div>
-          <div className="w-full md:w-[calc(33.333%-11px)]">
-            {renderCard(items[1])}
-          </div>
-        </div>
-      )
+    if (items.length === 0) {
+      return null
     }
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full items-start">
-        {items.map(renderCard)}
+        {items.map((item) => renderCard(item))}
       </div>
     )
   }
 
+  const totalServices = servicesCategories.reduce(
+    (total, group) => total + group.items.length,
+    0
+  )
+
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 md:px-8 pb-28 font-sans space-y-6">
-      
-      {/* Header Halaman */}
       <div className="border-b border-gray-200 pb-5">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2.5">
-          <Layers className="text-amber-500 stroke-[2.2]" /> Kelola Layanan Bisnis
+          <Layers className="text-amber-500 stroke-[2.2]" />
+          Kelola Layanan Bisnis
         </h1>
+
         <p className="text-gray-500 text-sm mt-1">
           Kelola daftar fasilitas, lisensi, dan penasihat layanan bisnis Anda.
         </p>
       </div>
 
-      {/* Main Container */}
       <div className="relative border border-gray-200 rounded-3xl p-6 md:p-8 pt-10 bg-gray-50/50 shadow-2xs">
         <div className="absolute -top-3.5 left-6">
           <span className="px-3.5 py-1 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-full select-none shadow-2xs">
@@ -275,32 +381,42 @@ export default function AdminDesk() {
           </span>
         </div>
 
-        <div className="flex flex-col gap-10">
-          {servicesCategories.map((group, groupIdx) => {
-            if (group.items.length === 0) return null
-
-            const firstRowItems = group.items.slice(0, 3)
-            const secondRowItems = group.items.slice(3)
-
-            return (
-              <div key={groupIdx} className="flex flex-col items-center w-full">
+        {loading ? (
+          <div className="flex justify-center items-center py-16">
+            <p className="text-sm text-gray-500">
+              Memuat data layanan...
+            </p>
+          </div>
+        ) : servicesCategories.length === 0 ? (
+          <div className="flex justify-center items-center py-16">
+            <p className="text-sm text-gray-500">
+              Belum ada data layanan.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-10">
+            {servicesCategories.map((group) => (
+              <div
+                key={group.categoryName}
+                className="flex flex-col items-center w-full"
+              >
                 <div className="mb-4">
                   <span className="px-4 py-1 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-full shadow-2xs select-none">
                     {group.categoryName}
                   </span>
                 </div>
 
-                <div className="flex flex-col gap-4 w-full">
-                  {renderRow(firstRowItems)}
-                  {renderRow(secondRowItems)}
-                </div>
+                {renderRow(group.items)}
               </div>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Floating Action Button (FAB) */}
+      <div className="text-center text-xs text-gray-400">
+        Total layanan: {totalServices}
+      </div>
+
       <button
         type="button"
         onClick={handleOpenAdd}
@@ -310,17 +426,22 @@ export default function AdminDesk() {
         <span>Tambah Layanan</span>
       </button>
 
-      {/* Modal / Dialog Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-opacity">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-gray-100 flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            
-            {/* Header Modal */}
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
               <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                {editId ? <Pencil size={16} className="text-amber-500" /> : <Plus size={18} className="text-amber-500" />}
-                {editId ? 'Edit Layanan' : 'Tambah Layanan Baru'}
+                {editId !== null ? (
+                  <Pencil size={16} className="text-amber-500" />
+                ) : (
+                  <Plus size={18} className="text-amber-500" />
+                )}
+
+                {editId !== null
+                  ? 'Edit Layanan'
+                  : 'Tambah Layanan Baru'}
               </h2>
+
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
@@ -330,20 +451,28 @@ export default function AdminDesk() {
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form
+              onSubmit={handleSubmit}
+              className="p-6 space-y-4"
+            >
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Kategori Service
+                  Kategori
                 </label>
+
                 <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  value={categoryId}
+                  onChange={(e) =>
+                    setCategoryId(e.target.value)
+                  }
                   className="w-full p-3 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all text-gray-800 bg-white"
                 >
-                  {CATEGORY_LIST.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
+                  {CATEGORY_LIST.map((category) => (
+                    <option
+                      key={category}
+                      value={category}
+                    >
+                      {category}
                     </option>
                   ))}
                 </select>
@@ -351,32 +480,37 @@ export default function AdminDesk() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Judul Service
+                  Judul Bahasa Indonesia
                 </label>
+
                 <input
                   type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  value={titleId}
+                  onChange={(e) =>
+                    setTitleId(e.target.value)
+                  }
                   required
-                  placeholder="Masukkan nama layanan..."
+                  placeholder="Masukkan judul bahasa Indonesia..."
                   className="w-full p-3 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all text-gray-800 placeholder:text-gray-400"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Deskripsi
+                  Deskripsi Bahasa Indonesia
                 </label>
+
                 <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  value={descriptionId}
+                  onChange={(e) =>
+                    setDescriptionId(e.target.value)
+                  }
                   rows={4}
-                  placeholder="Tuliskan deskripsi ringkas layanan..."
+                  placeholder="Tuliskan deskripsi bahasa Indonesia..."
                   className="w-full p-3 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all text-gray-800 placeholder:text-gray-400 resize-none"
                 />
               </div>
 
-              {/* Footer Modal */}
               <div className="flex gap-3 justify-end pt-4 border-t border-gray-100 mt-6">
                 <button
                   type="button"
@@ -385,6 +519,7 @@ export default function AdminDesk() {
                 >
                   Batal
                 </button>
+
                 <button
                   type="submit"
                   className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-semibold transition-all cursor-pointer shadow-sm"

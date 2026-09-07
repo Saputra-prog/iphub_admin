@@ -2,47 +2,59 @@
 
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import axios from 'axios';
-import { 
-  Briefcase, 
-  Save, 
-  Image as ImageIcon, 
-  CheckCircle2, 
-  AlertCircle 
+import {
+  Briefcase,
+  Save,
+  Image as ImageIcon,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 interface BisnisData {
   id?: number;
-  title: string;
-  content: string;
+  title_id: string;
+  title_en: string;
+  content_id: string;
+  content_en: string;
   bgImage: string;
 }
 
 export default function AdminBisnisPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
   const [title, setTitle] = useState<string>('');
   const [content, setContent] = useState<string>('');
   const [bgImageFile, setBgImageFile] = useState<File | null>(null);
   const [currentBg, setCurrentBg] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingFetch, setLoadingFetch] = useState<boolean>(true);
-  const [statusMessage, setStatusMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    text: string;
+    isError: boolean;
+  } | null>(null);
 
   useEffect(() => {
     axios
       .get<BisnisData>(`${API_URL}/api/bisnis`)
       .then((res) => {
-        setTitle(res.data.title || '');
-        setContent(res.data.content || '');
+        setTitle(res.data.title_id || '');
+        setContent(res.data.content_id || '');
+
         if (res.data.bgImage) {
           const fullImg = res.data.bgImage.startsWith('http')
             ? res.data.bgImage
             : `${API_URL}${res.data.bgImage}`;
+
           setCurrentBg(fullImg);
         }
       })
       .catch((err) => {
         console.error('Gagal mengambil data:', err);
-        setStatusMessage({ text: 'Gagal memuat data dari server.', isError: true });
+
+        setStatusMessage({
+          text: 'Gagal memuat data dari server.',
+          isError: true
+        });
       })
       .finally(() => {
         setLoadingFetch(false);
@@ -52,6 +64,7 @@ export default function AdminBisnisPage() {
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+
       setBgImageFile(file);
       setCurrentBg(URL.createObjectURL(file));
     }
@@ -59,12 +72,15 @@ export default function AdminBisnisPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     setLoading(true);
     setStatusMessage(null);
 
     const formData = new FormData();
-    formData.append('title', title);
-    formData.append('content', content);
+
+    formData.append('title_id', title);
+    formData.append('content_id', content);
+
     if (bgImageFile) {
       formData.append('bgImage', bgImageFile);
     }
@@ -72,13 +88,21 @@ export default function AdminBisnisPage() {
     try {
       await axios.put(`${API_URL}/api/bisnis`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+          'Content-Type': 'multipart/form-data'
+        }
       });
-      setStatusMessage({ text: 'Perubahan berhasil disimpan!', isError: false });
+
+      setStatusMessage({
+        text: 'Perubahan berhasil disimpan dan Bahasa Inggris diperbarui otomatis!',
+        isError: false
+      });
     } catch (err) {
       console.error('Gagal menyimpan data:', err);
-      setStatusMessage({ text: 'Gagal menyimpan perubahan ke server.', isError: true });
+
+      setStatusMessage({
+        text: 'Gagal menyimpan perubahan ke server.',
+        isError: true
+      });
     } finally {
       setLoading(false);
     }
@@ -94,17 +118,17 @@ export default function AdminBisnisPage() {
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 md:px-8 pb-24 font-sans space-y-6">
-      {/* Header Halaman */}
       <div className="border-b border-gray-200 pb-5">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2.5">
-          <Briefcase className="text-amber-500 stroke-[2.2]" /> Kelola Section Bisnis
+          <Briefcase className="text-amber-500 stroke-[2.2]" />
+          Kelola Section Bisnis
         </h1>
+
         <p className="text-gray-500 text-sm mt-1">
           Atur informasi layanan dan unit bisnis utama yang ditampilkan pada portal.
         </p>
       </div>
 
-      {/* Pesan Status Notifikasi */}
       {statusMessage && (
         <div
           className={`p-4 rounded-xl text-sm font-medium flex items-center gap-3 transition-all ${
@@ -118,18 +142,20 @@ export default function AdminBisnisPage() {
           ) : (
             <CheckCircle2 size={18} className="shrink-0" />
           )}
+
           <span>{statusMessage.text}</span>
         </div>
       )}
 
-      {/* Form Utama Berdesain Card */}
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6">
-        
-        {/* Input Judul */}
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6"
+      >
         <div className="space-y-2">
           <label className="block text-xs font-semibold text-gray-700">
-            Judul Bisnis
+            Judul Bisnis Bahasa Indonesia
           </label>
+
           <input
             type="text"
             value={title}
@@ -140,11 +166,11 @@ export default function AdminBisnisPage() {
           />
         </div>
 
-        {/* Input Deskripsi */}
         <div className="space-y-2">
           <label className="block text-xs font-semibold text-gray-700">
-            Isi / Deskripsi Bisnis
+            Isi / Deskripsi Bisnis Bahasa Indonesia
           </label>
+
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -155,12 +181,11 @@ export default function AdminBisnisPage() {
           />
         </div>
 
-        {/* Input Gambar Bisnis */}
         <div className="space-y-3 pt-2">
           <label className="block text-xs font-semibold text-gray-700">
             Gambar Bisnis
           </label>
-          
+
           <div className="flex items-center gap-4">
             <input
               type="file"
@@ -170,12 +195,13 @@ export default function AdminBisnisPage() {
             />
           </div>
 
-          {/* Preview Gambar */}
           {currentBg && (
             <div className="mt-4 space-y-2">
               <span className="text-xs text-gray-500 flex items-center gap-1.5 font-medium">
-                <ImageIcon size={14} className="text-amber-500" /> Preview Gambar Saat Ini:
+                <ImageIcon size={14} className="text-amber-500" />
+                Preview Gambar Saat Ini:
               </span>
+
               <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50 aspect-video max-h-72">
                 <img
                   src={currentBg}
@@ -187,7 +213,6 @@ export default function AdminBisnisPage() {
           )}
         </div>
 
-        {/* Tombol Simpan */}
         <div className="flex justify-end pt-4 border-t border-gray-100">
           <button
             type="submit"
