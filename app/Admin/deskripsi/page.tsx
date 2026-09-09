@@ -42,7 +42,7 @@ interface ServiceCategory {
 }
 
 const CATEGORY_LIST = [
-  'Korporasi Umum & Kantor Virtual',
+  'Kantor Virtual',
   'Pendirian Perusahaan',
   'Layanan Perizinan Usaha Standar',
   'Layanan Keuangan, Konsultasi & Hukum',
@@ -51,21 +51,27 @@ const CATEGORY_LIST = [
 
 const ICON_MAP: Record<string, LucideIcon> = {
   'Kantor Virtual': Building2,
-  'Korporasi Umum & Kantor Virtual': Building2,
   'Virtual Office': Building2,
+
   'Perseroan Terbatas (PMA)': Building,
   'Perseroan Terbatas (Lokal)': UserCheck,
+
   'Yayasan': Landmark,
   'Foundation': Landmark,
+
   'Perusahaan Perorangan': UserCheck,
   'Pendirian Perusahaan': Building,
+
   'Layanan Perizinan Usaha Standar': FileCheck2,
+
   'Pembukuan': BookOpenCheck,
   'Bookkeeping': BookOpenCheck,
+
   'Layanan Audit': FileSearch,
   'Konsultasi Pajak': Receipt,
   'VISA & KITAS': Globe,
   'Merek & Paten': Award,
+
   'Kafe & Coffee Roastery': Coffee,
   'Ruang Meeting': Users,
   'Private Office': Briefcase
